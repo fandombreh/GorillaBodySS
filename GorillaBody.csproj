@@ -1,0 +1,121 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.1</TargetFramework>
+        <LangVersion>preview</LangVersion>
+        <Nullable>enable</Nullable>
+        <RootNamespace>BodyTracking</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Reference Include="0Harmony">
+            <HintPath>$(BepInExAssemblyPath)\0Harmony.dll</HintPath>
+        </Reference>
+        <Reference Include="Assembly-CSharp" Publicize="true">
+            <HintPath>$(GameAssemblyPath)\Assembly-CSharp.dll</HintPath>
+        </Reference>
+        <Reference Include="BepInEx">
+            <HintPath>$(BepInExAssemblyPath)\BepInEx.dll</HintPath>
+        </Reference>
+        <Reference Include="Fusion.Runtime">
+            <HintPath>$(GameAssemblyPath)\Fusion.Runtime.dll</HintPath>
+        </Reference>
+        <Reference Include="mscorlib">
+            <HintPath>$(GameAssemblyPath)\mscorlib.dll</HintPath>
+        </Reference>
+        <Reference Include="Photon3Unity3D">
+            <HintPath>$(GameAssemblyPath)\Photon3Unity3D.dll</HintPath>
+        </Reference>
+        <Reference Include="PhotonRealtime">
+            <HintPath>$(GameAssemblyPath)\PhotonRealtime.dll</HintPath>
+        </Reference>
+        <Reference Include="PhotonUnityNetworking">
+            <HintPath>$(GameAssemblyPath)\PhotonUnityNetworking.dll</HintPath>
+        </Reference>
+        <Reference Include="Sirenix.OdinInspector.Attributes">
+            <HintPath>$(GameAssemblyPath)\Sirenix.OdinInspector.Attributes.dll</HintPath>
+        </Reference>
+        <Reference Include="System">
+            <HintPath>$(GameAssemblyPath)\System.dll</HintPath>
+        </Reference>
+        <Reference Include="System.ComponentModel.Composition">
+            <HintPath>$(GameAssemblyPath)\System.ComponentModel.Composition.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Core">
+            <HintPath>$(GameAssemblyPath)\System.Core.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Data">
+            <HintPath>$(GameAssemblyPath)\System.Data.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Drawing">
+            <HintPath>$(GameAssemblyPath)\System.Drawing.dll</HintPath>
+        </Reference>
+        <Reference Include="System.IO.Compression">
+            <HintPath>$(GameAssemblyPath)\System.IO.Compression.dll</HintPath>
+        </Reference>
+        <Reference Include="System.IO.Compression.FileSystem">
+            <HintPath>$(GameAssemblyPath)\System.IO.Compression.FileSystem.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Net.Http">
+            <HintPath>$(GameAssemblyPath)\System.Net.Http.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Numerics">
+            <HintPath>$(GameAssemblyPath)\System.Numerics.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Runtime">
+            <HintPath>$(GameAssemblyPath)\System.Runtime.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Runtime.Serialization">
+            <HintPath>$(GameAssemblyPath)\System.Runtime.Serialization.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Transactions">
+            <HintPath>$(GameAssemblyPath)\System.Transactions.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Xml">
+            <HintPath>$(GameAssemblyPath)\System.Xml.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Xml.Linq">
+            <HintPath>$(GameAssemblyPath)\System.Xml.Linq.dll</HintPath>
+        </Reference>
+        <Reference Include="Unity.Addressables">
+            <HintPath>$(GameAssemblyPath)\Unity.Addressables.dll</HintPath>
+        </Reference>
+        <Reference Include="Unity.InputSystem">
+            <HintPath>$(GameAssemblyPath)\Unity.InputSystem.dll</HintPath>
+        </Reference>
+        <Reference Include="Unity.Mathematics">
+            <HintPath>$(GameAssemblyPath)\Unity.Mathematics.dll</HintPath>
+        </Reference>
+        <Reference Include="Unity.ResourceManager">
+            <HintPath>$(GameAssemblyPath)\Unity.ResourceManager.dll</HintPath>
+        </Reference>
+        <Reference Include="Unity.XR.OpenVR">
+            <HintPath>$(GameAssemblyPath)\Unity.XR.OpenVR.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine">
+            <HintPath>$(GameAssemblyPath)\UnityEngine.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.CoreModule">
+            <HintPath>$(GameAssemblyPath)\UnityEngine.CoreModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.IMGUIModule">
+            <HintPath>$(GameAssemblyPath)\UnityEngine.IMGUIModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.PhysicsModule">
+            <HintPath>$(GameAssemblyPath)\UnityEngine.PhysicsModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.VRModule">
+            <HintPath>$(GameAssemblyPath)\UnityEngine.VRModule.dll</HintPath>
+        </Reference>
+        <Reference Include="ZString">
+            <HintPath>$(GameAssemblyPath)\ZString.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.3">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+    </ItemGroup>
+</Project>
