@@ -40,6 +40,13 @@ public enum TrackerRole
     RightElbow
 }
 
+public enum VisibilityMode
+{
+    ModSided,
+    ClientSided,
+    ServerSided
+}
+
 public struct ElbowResult
 {
     public Vector3 ShoulderPos;
@@ -789,7 +796,7 @@ public class BodyTrackingClass : MonoBehaviour
     private static readonly GUIContent ElbowTrackingLabel = new("ENABLE ELBOW TRACKING");
     private static readonly GUIContent ElbowTrackingCoolDown = new("TOGGLING...");
     private static readonly GUIContent PressB = new("PRESS <color=#FFC23F>B KEY 3(*)</color> TIMES");
-    private static readonly GUIContent ByGraze = new($"BY GRAZE.({PluginInfo.Version})");
+    private static readonly GUIContent ByPico = new($"BY PICO.({PluginInfo.Version})");
     private static readonly GUIContent SetAsChest = new("SET AS CHEST");
     private static readonly GUIContent SetAsHip = new("SET AS HIP");
     private static readonly GUIContent SetAsLeftElbow = new("SET AS LEFT ELBOW");
@@ -806,7 +813,10 @@ public class BodyTrackingClass : MonoBehaviour
     private static readonly GUIContent CalibrateTPoseLabel = new("CALIBRATE T-POSE (ARMS OUT)");
     private static readonly GUIContent CalibrateHeightLabel = new("CALIBRATE HEIGHT (STAND UP)");
     private static readonly GUIContent FingerTrackingLabel = new("FINGER TRACKING");
-    private static readonly GUIContent VanillaVisibleLabel = new("VISIBLE TO VANILLA");
+    private static readonly GUIContent ServerSidedLabel = new("Server Sided");
+    private static readonly GUIContent ClientSidedLabel = new("Client Sided");
+    private static readonly GUIContent ModSidedLabel = new("Mod Sided");
+    private static readonly GUIContent ServerSidedWarning = new("<color=red><b>WARNING:</b> Server Sided can be risky. Use at your own discretion.</color>");
 
     #endregion
 
@@ -852,12 +862,12 @@ public class BodyTrackingClass : MonoBehaviour
     private static ConfigEntry<float>? _userArmLength;
     private static ConfigEntry<float>? _userHeight;
     private static ConfigEntry<bool>? _fingerTrackingEnabled;
-    private static ConfigEntry<bool>? _vanillaVisible;
+    private static ConfigEntry<VisibilityMode>? _visibilityMode;
 
     private static readonly Dictionary<VRRig, RemoteElbowInfo> RemoteElbowDataMap = new();
 
     // Accessors
-    public bool IsVanillaVisible => _vanillaVisible is { Value: true };
+    public VisibilityMode CurrentVisibilityMode => _visibilityMode?.Value ?? VisibilityMode.ModSided;
     public bool IsSpineEnabled => _spineEnabled is { Value: true };
     public bool IsHeadLeanEnabled => _headLeanEnabled is { Value: true };
     public ref ElbowResult GetLeftElbowResult() => ref _leftElbowResult;
@@ -877,7 +887,7 @@ public class BodyTrackingClass : MonoBehaviour
     private void Awake()
     {
         Instance = this;
-        var config = new ConfigFile(Path.Combine(Paths.ConfigPath, "Graze.GorillaBody.cfg"), true);
+        var config = new ConfigFile(Path.Combine(Paths.ConfigPath, "Pico.GorillaBody.cfg"), true);
 
         // --- RESET ON RESTART LOGIC ---
         _chestDeviceId = config.Bind("Setup", "Chest Tracker Device ID", uint.MaxValue);
@@ -906,7 +916,7 @@ public class BodyTrackingClass : MonoBehaviour
         _headLeanEnabled = config.Bind("Settings", "Head Lean", true);
         _autoDetectEnabled = config.Bind("Settings", "Auto Detect Trackers", true);
         _fingerTrackingEnabled = config.Bind("Settings", "Finger Tracking", true);
-        _vanillaVisible = config.Bind("Settings", "Visible to Vanilla", true);
+        _visibilityMode = config.Bind("Settings", "Visibility", VisibilityMode.ModSided, "ServerSided: Everyone sees rotation (risky). ClientSided: Mod users see full IK. ModSided: Only mod users see FBT, vanilla sees normal.");
         
         _userArmLength = config.Bind("Calibration", "Arm Length", 0.65f);
         _userHeight = config.Bind("Calibration", "User Height", 1.5f);
@@ -1421,6 +1431,11 @@ public class BodyTrackingClass : MonoBehaviour
 
         if (_guiSkin == null) return;
 
+        // Scale the GUI to be resolution-independent
+        var nativeRes = new Vector2(1920, 1080);
+        float scale = Screen.height / nativeRes.y;
+        GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(scale, scale, 1));
+        
         if (OpenVR.System == null)
             NoVrGUI();
         else
@@ -1436,7 +1451,7 @@ public class BodyTrackingClass : MonoBehaviour
         GUILayout.Label(NotinVr, _guiSkin.label);
         GUILayout.Space(10);
         GUILayout.Label(PressB, _guiSkin.label);
-        GUILayout.Label(ByGraze, _guiSkin.label);
+        GUILayout.Label(ByPico, _guiSkin.label);
         GUILayout.EndVertical();
     }
 
@@ -1478,7 +1493,7 @@ public class BodyTrackingClass : MonoBehaviour
 
         if (!inSetup) return;
 
-        GUILayout.BeginVertical(_guiSkin.box);
+        GUILayout.BeginVertical(_guiSkin.box, GUILayout.Width(800));
         GUILayout.Label(GcHeader, _guiSkin.label);
 
         if (_activeDeviceCount <= 1)
@@ -1502,6 +1517,8 @@ public class BodyTrackingClass : MonoBehaviour
             {
                 CalibrateBody();
             }
+            
+            DrawVisibilityButtons();
 
             GUILayout.Space(5);
             DrawTrackerGrid();
@@ -1562,20 +1579,49 @@ public class BodyTrackingClass : MonoBehaviour
             
         if (_fingerTrackingEnabled != null)
             _fingerTrackingEnabled.Value = GUILayout.Toggle(_fingerTrackingEnabled.Value, FingerTrackingLabel, _guiSkin.toggle);
-            
-        if (_vanillaVisible != null)
-            _vanillaVisible.Value = GUILayout.Toggle(_vanillaVisible.Value, VanillaVisibleLabel, _guiSkin.toggle);
 
         DrawAssignmentSummary();
 
         GUILayout.Space(10);
         GUILayout.Label(PressB, _guiSkin.label);
-        GUILayout.Label(ByGraze, _guiSkin.label);
+        GUILayout.Label(ByPico, _guiSkin.label);
         GUILayout.EndVertical();
+    }
+    
+    private void DrawVisibilityButtons()
+    {
+        if (_visibilityMode == null) return;
+        
+        GUILayout.Space(10);
+        GUILayout.Label("VISIBILITY:", _smallLabel);
+        
+        GUILayout.BeginHorizontal();
+        var currentMode = _visibilityMode.Value;
+
+        GUI.backgroundColor = currentMode == VisibilityMode.ModSided ? Color.green : Color.white;
+        if(GUILayout.Button(ModSidedLabel)) _visibilityMode.Value = VisibilityMode.ModSided;
+        
+        GUI.backgroundColor = currentMode == VisibilityMode.ClientSided ? Color.yellow : Color.white;
+        if(GUILayout.Button(ClientSidedLabel)) _visibilityMode.Value = VisibilityMode.ClientSided;
+        
+        GUI.backgroundColor = currentMode == VisibilityMode.ServerSided ? Color.red : Color.white;
+        if(GUILayout.Button(ServerSidedLabel)) _visibilityMode.Value = VisibilityMode.ServerSided;
+
+        GUI.backgroundColor = Color.white; // Reset
+        GUILayout.EndHorizontal();
+
+        if (_visibilityMode.Value == VisibilityMode.ServerSided)
+        {
+            // Blinking effect for warning
+            GUI.color = (Time.time % 1f < 0.5f) ? Color.red : Color.white;
+            GUILayout.Label(ServerSidedWarning);
+            GUI.color = Color.white;
+        }
     }
 
     private void DrawAssignmentSummary()
     {
+        if (_smallLabel == null) return;
         GUILayout.Space(5);
 
         var chest = GetTrackerByRole(TrackerRole.Chest);
