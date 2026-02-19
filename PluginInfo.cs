@@ -1,9 +1,10 @@
-﻿// ReSharper disable once CheckNamespace
-namespace GorillaBody;
-
-public static class PluginInfo
+namespace GorillaBodyServer
 {
-    public const string Guid = "com.pico.gorillabody";
-    public const string Name = "GorillaBody";
-    public const string Version = "2.0.0";
+    public static class PluginInfo
+    {
+        public const string GUID = "com.yourname.gorillabodyserver";
+        public const string Name = "GorillaBodyServer";
+        public const string Version = "1.0.0";
+    }
 }
+
