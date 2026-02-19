@@ -1,141 +1,54 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using Photon.Pun;
-using Valve.VR;
 
 namespace GorillaBodyServer
 {
     /// <summary>
-    /// Attached to the local player. Reads SteamVR tracker data and broadcasts
-    /// chest/elbow positions to ALL players via Photon RPC (server-sided).
-    /// Other players render ghost limbs on their end using BodyLimbRenderer.
+    /// Holds synced body tracking data for a player.
+    /// Chest, left elbow, and right elbow positions/rotations.
     /// </summary>
-    public class BodyTrackingManager : MonoBehaviourPun
+    public class BodyTrackingData
     {
-        public static BodyTrackingManager Instance { get; private set; }
+        public Vector3 ChestPosition;
+        public Quaternion ChestRotation;
 
-        // How often to send tracking data (times per second)
-        private const float SendRate = 20f;
-        private float _sendTimer;
+        public Vector3 LeftElbowPosition;
+        public Quaternion LeftElbowRotation;
 
-        // SteamVR tracker references
-        private SteamVR_TrackedObject _chestTracker;
-        private SteamVR_TrackedObject _leftElbowTracker;
-        private SteamVR_TrackedObject _rightElbowTracker;
+        public Vector3 RightElbowPosition;
+        public Quaternion RightElbowRotation;
 
-        // Remote players' limb renderers
-        private readonly Dictionary<int, BodyLimbRenderer> _remotePlayers = new Dictionary<int, BodyLimbRenderer>();
-
-        private void Awake()
+        // Pack into object array for Photon RPC
+        public object[] ToRPCData()
         {
-            if (Instance != null && Instance != this)
+            return new object[]
             {
-                Destroy(gameObject);
-                return;
-            }
-            Instance = this;
-        }
+                ChestPosition.x, ChestPosition.y, ChestPosition.z,
+                ChestRotation.x, ChestRotation.y, ChestRotation.z, ChestRotation.w,
 
-        private void Start()
-        {
-            InitTrackers();
-        }
+                LeftElbowPosition.x, LeftElbowPosition.y, LeftElbowPosition.z,
+                LeftElbowRotation.x, LeftElbowRotation.y, LeftElbowRotation.z, LeftElbowRotation.w,
 
-        private void InitTrackers()
-        {
-            // Find SteamVR tracked objects assigned to chest/elbow roles
-            // Adjust indices to match your SteamVR tracker assignment
-            var trackers = FindObjectsByType<SteamVR_TrackedObject>(FindObjectsSortMode.None);
-            foreach (var t in trackers)
-            {
-                // You can refine this logic based on tracker serial/role
-                string name = t.gameObject.name.ToLower();
-                if (name.Contains("chest"))
-                    _chestTracker = t;
-                else if (name.Contains("leftelbow") || name.Contains("left elbow"))
-                    _leftElbowTracker = t;
-                else if (name.Contains("rightelbow") || name.Contains("right elbow"))
-                    _rightElbowTracker = t;
-            }
-
-            if (_chestTracker == null || _leftElbowTracker == null || _rightElbowTracker == null)
-            {
-                // Fallback: assign by index (chest=0, leftElbow=1, rightElbow=2)
-                Plugin.Log.LogWarning("[GorillaBodyServer] Could not find named trackers. Falling back to index-based assignment.");
-                var list = new List<SteamVR_TrackedObject>(trackers);
-                if (list.Count > 0) _chestTracker = list[0];
-                if (list.Count > 1) _leftElbowTracker = list[1];
-                if (list.Count > 2) _rightElbowTracker = list[2];
-            }
-        }
-
-        private void Update()
-        {
-            if (!PhotonNetwork.InRoom) return;
-            if (!photonView.IsMine) return;
-
-            _sendTimer += Time.deltaTime;
-            if (_sendTimer >= 1f / SendRate)
-            {
-                _sendTimer = 0f;
-                SendTrackingData();
-            }
-        }
-
-        private void SendTrackingData()
-        {
-            if (_chestTracker == null || _leftElbowTracker == null || _rightElbowTracker == null)
-                return;
-
-            var data = new BodyTrackingData
-            {
-                ChestPosition = _chestTracker.transform.position,
-                ChestRotation = _chestTracker.transform.rotation,
-
-                LeftElbowPosition = _leftElbowTracker.transform.position,
-                LeftElbowRotation = _leftElbowTracker.transform.rotation,
-
-                RightElbowPosition = _rightElbowTracker.transform.position,
-                RightElbowRotation = _rightElbowTracker.transform.rotation
+                RightElbowPosition.x, RightElbowPosition.y, RightElbowPosition.z,
+                RightElbowRotation.x, RightElbowRotation.y, RightElbowRotation.z, RightElbowRotation.w
             };
-
-            // Send to ALL players including non-mod users
-            photonView.RPC(nameof(RPC_ReceiveBodyTracking), RpcTarget.Others, data.ToRPCData());
         }
 
-        [PunRPC]
-        public void RPC_ReceiveBodyTracking(object[] rawData, PhotonMessageInfo info)
+        public static BodyTrackingData FromRPCData(object[] data)
         {
-            var data = BodyTrackingData.FromRPCData(rawData);
-            if (data == null) return;
+            if (data == null || data.Length < 21) return null;
 
-            int actorNumber = info.Sender.ActorNumber;
-
-            // Get or create limb renderer for this remote player
-            if (!_remotePlayers.TryGetValue(actorNumber, out var renderer))
+            int i = 0;
+            return new BodyTrackingData
             {
-                renderer = CreateLimbRenderer(info.Sender.ActorNumber);
-                _remotePlayers[actorNumber] = renderer;
-            }
+                ChestPosition = new Vector3((float)data[i++], (float)data[i++], (float)data[i++]),
+                ChestRotation = new Quaternion((float)data[i++], (float)data[i++], (float)data[i++], (float)data[i++]),
 
-            renderer.UpdateLimbs(data);
-        }
+                LeftElbowPosition = new Vector3((float)data[i++], (float)data[i++], (float)data[i++]),
+                LeftElbowRotation = new Quaternion((float)data[i++], (float)data[i++], (float)data[i++], (float)data[i++]),
 
-        private BodyLimbRenderer CreateLimbRenderer(int actorNumber)
-        {
-            var go = new GameObject($"BodyLimbs_Player{actorNumber}");
-            DontDestroyOnLoad(go);
-            return go.AddComponent<BodyLimbRenderer>();
-        }
-
-        public void RemovePlayer(int actorNumber)
-        {
-            if (_remotePlayers.TryGetValue(actorNumber, out var renderer))
-            {
-                if (renderer != null) Destroy(renderer.gameObject);
-                _remotePlayers.Remove(actorNumber);
-            }
+                RightElbowPosition = new Vector3((float)data[i++], (float)data[i++], (float)data[i++]),
+                RightElbowRotation = new Quaternion((float)data[i++], (float)data[i++], (float)data[i++], (float)data[i++])
+            };
         }
     }
 }
