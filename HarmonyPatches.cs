@@ -1,45 +1,53 @@
-﻿using System;
-using System.Reflection;
 using HarmonyLib;
-using UnityEngine;
+using Photon.Pun;
+using Photon.Realtime;
 
-namespace GorillaBody;
-
-public static class HarmonyPatches
+namespace GorillaBodyServer
 {
-    private const string InstanceId = PluginInfo.Guid;
-    private static Harmony? _instance;
-
-    private static bool IsPatched { get; set; }
-
-    internal static void ApplyHarmonyPatches()
+    /// <summary>
+    /// Harmony patches to hook player join/leave and inject the BodyTrackingManager.
+    /// </summary>
+    public static class HarmonyPatches
     {
-        if (IsPatched) return;
+        private static Harmony _harmony;
 
-        try
+        public static void ApplyPatches()
         {
-            _instance ??= new Harmony(InstanceId);
-            _instance.PatchAll(Assembly.GetExecutingAssembly());
-            IsPatched = true;
+            _harmony = new Harmony(PluginInfo.GUID);
+            _harmony.PatchAll(typeof(HarmonyPatches));
+            Plugin.Log.LogInfo("[GorillaBodyServer] Harmony patches applied.");
         }
-        catch (Exception e)
-        {
-            Debug.LogError($"[GorillaBody] Failed to apply Harmony patches: {e}");
-        }
-    }
 
-    internal static void RemoveHarmonyPatches()
-    {
-        if (!IsPatched || _instance == null) return;
-
-        try
+        public static void RemovePatches()
         {
-            _instance.UnpatchSelf();
-            IsPatched = false;
+            _harmony?.UnpatchSelf();
         }
-        catch (Exception e)
+
+        // Patch: when the local player joins a room, spawn the BodyTrackingManager
+        [HarmonyPatch(typeof(MonoBehaviourPunCallbacks), nameof(MonoBehaviourPunCallbacks.OnJoinedRoom))]
+        [HarmonyPostfix]
+        public static void OnJoinedRoom_Postfix()
         {
-            Debug.LogError($"[GorillaBody] Failed to remove Harmony patches: {e}");
+            if (BodyTrackingManager.Instance != null) return;
+
+            var go = new UnityEngine.GameObject("GorillaBodyServer_Manager");
+            UnityEngine.Object.DontDestroyOnLoad(go);
+
+            // Add PhotonView for RPC support
+            var pv = go.AddComponent<PhotonView>();
+            pv.ViewID = PhotonNetwork.AllocateViewID(false);
+
+            go.AddComponent<BodyTrackingManager>();
+
+            Plugin.Log.LogInfo("[GorillaBodyServer] BodyTrackingManager spawned.");
+        }
+
+        // Patch: clean up limb renderers when a player leaves
+        [HarmonyPatch(typeof(MonoBehaviourPunCallbacks), nameof(MonoBehaviourPunCallbacks.OnPlayerLeftRoom))]
+        [HarmonyPostfix]
+        public static void OnPlayerLeftRoom_Postfix(Player otherPlayer)
+        {
+            BodyTrackingManager.Instance?.RemovePlayer(otherPlayer.ActorNumber);
         }
     }
 }
